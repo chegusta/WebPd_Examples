@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>WebPd boilerplate</title>
+        <style>
+            #start {
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+            #loading {
+                width: 100%;
+                height: 100%;
+                position: fixed;
+                top: 50%;
+                transform: translateY(-50%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+        </style>
+         <script src="resources/p5.min.js"></script>
+    </head>
+    <body>
+        <button id="start"> Start </button>
+        <div id="loading"> Loading ... </div>
+        <script src="webpd-runtime.js"></script>
+        <script>
+            // SUMMARY
+            // 1. WEB PAGE INITIALIZATION
+            // 2. SENDING MESSAGES FROM JAVASCRIPT TO THE PATCH
+            // 3. SENDING MESSAGES FROM THE PATCH TO JAVASCRIPT (coming soon ...)
+
+
+            // ------------- 1. WEB PAGE INITIALIZATION
+            const loadingDiv = document.querySelector('#loading')
+            const startButton = document.querySelector('#start')
+            const audioContext = new AudioContext()
+
+            let patch = null
+            let stream = null
+            let webpdNode = null
+
+            const initApp = async () => {
+                // Register the worklet
+                await WebPdRuntime.registerWebPdWorkletNode(audioContext)
+
+                // Fetch the patch code
+                response = await fetch('patch.wasm')
+                patch = await response.arrayBuffer()
+
+                // Get audio input
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+                // Hide loading and show start button
+                loadingDiv.style.display = 'none'
+                startButton.style.display = 'block'
+            }
+
+            const startApp = async () => {
+                // AudioContext needs to be resumed on click to protects users 
+                // from being spammed with autoplay.
+                // See : https://github.com/WebAudio/web-audio-api/issues/345
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume()
+                }
+
+                // Setup web audio graph
+                const sourceNode = audioContext.createMediaStreamSource(stream)
+                webpdNode = new WebPdRuntime.WebPdWorkletNode(audioContext)
+                sourceNode.connect(webpdNode)
+                webpdNode.connect(audioContext.destination)
+
+                // Setup filesystem management
+                webpdNode.port.onmessage = (message) => 
+                    WebPdRuntime.fsWeb(webpdNode, message, { 
+                        rootUrl: WebPdRuntime.urlDirName(location.pathname) 
+                    })
+
+                // Send code to the worklet
+                
+                webpdNode.port.postMessage({
+                    type: 'code:WASM',
+                    payload: {
+                        wasmBuffer: patch,
+                    },
+                })
+
+                // Hide the start button
+                startButton.style.display = 'none'
+            }
+
+            startButton.onclick = startApp
+
+            initApp().
+                then(() => {
+                    console.log('App initialized')
+                })
+
+            
+            // ------------- 2. SENDING MESSAGES FROM JAVASCRIPT TO THE PATCH
+            // Use the function sendMsgToWebPd to send a message from JavaScript to an object inside your patch.
+            // 
+            // Parameters : 
+            // - nodeId: the ID of the object you want to send a message to. 
+            //          This ID is a string that has been assigned by WebPd at compilation.
+            //          You can find below the list of available IDs with hints to help you 
+            //          identify the object you want to interact with.
+            // - portletId : the ID of the object portlet to which the message should be sent. 
+            // - message : the message to send. This must be a list of strings and / or numbers.
+            // 
+            // Examples :
+            // - sending a message to a bang node of ID 'n_0_1' :
+            //          sendMsgToWebPd('n_0_1', '0', ['bang'])
+            // - sending a message to a number object of ID 'n_0_2' :
+            //          sendMsgToWebPd('n_0_2', '0', [123])
+            // 
+            const sendMsgToWebPd = (nodeId, portletId, message) => {
+                webpdNode.port.postMessage({
+                    type: 'inletCaller',
+                    payload: {
+                        nodeId,
+                        portletId,
+                        message,
+                    },
+                })
+            }
+            
+            // Here is an index of objects IDs to which you can send messages, with hints so you can find the right ID.
+            // Note that by default only GUI objects (bangs, sliders, etc ...) are available.
+            //  - nodeId "n_0_0" portletId "0"
+            //      * type "floatatom"
+            //      * args [0,0,"",""]
+            //  - nodeId "n_0_3" portletId "0"
+            //      * type "hsl"
+            //      * args [0,2000,0,0,"",""]
+            //      * label "CarrierFrequency"
+            //  - nodeId "n_0_5" portletId "0"
+            //      * type "floatatom"
+            //      * args [0,0,"",""]
+            //      * label "ModAmount"
+            //  - nodeId "n_0_7" portletId "0"
+            //      * type "floatatom"
+            //      * args [0,0,"",""]
+            //  - nodeId "n_0_10" portletId "0"
+            //      * type "floatatom"
+            //      * args [0,1,"",""]
+
+
+            // ------------- 3. SENDING MESSAGES FROM THE PATCH TO JAVASCRIPT
+            // Coming soon ... 
+
+
+
+
+            //P5 - stuff!
+
+            
+
+            function setup()
+            {
+                createCanvas(512, 512,WEBGL);
+            }
+
+            function draw()
+            {
+                background(200);
+                noFill();
+                rotateY(frameCount * 0.01);
+                let size = mouseX;
+                if(mouseX > width)
+                {
+                    size = width
+                }
+                let details = map(mouseY, 0, height, 1, 20);
+                //conversion to int as details takes ints
+                details = int(details)
+                sphere(size*0.5, details, details);
+                
+                if(webpdNode != null)
+                {
+                //PD Stuff
+
+                //map size to a range 1-2000 to cover more fq
+                //this is the id for the frequency
+                let fq = map(size, 0, width, 1, 500)
+                sendMsgToWebPd('n_0_3', 0, [fq])
+
+                //map size to a range 0-1 to influence volume
+                let vol = map(size, 0, width, 0, 1);
+                sendMsgToWebPd('n_0_10', 0, [vol])
+
+                //manipulate modulation with mouseY
+                sendMsgToWebPd('n_0_5', 0, [mouseY*10.0])
+                }
+            }
+
+        </script>
+    </body>
+</html>
