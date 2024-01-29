@@ -1,5 +1,12 @@
 # WebPD Examples
 This project demonstrates a possible way of combining WebPd with GLSL through P5.js, but also some simpler WebPd Shenanigans.
+You may also try them out in your browser (make sure the set the respective permissions and enable WebGL)
+
+https://chegusta.github.io/WebPd_Examples/MinimalExampleP5/
+
+https://chegusta.github.io/WebPd_Examples/WebPd_P5_GLSL/
+
+
 
 # Acknowledgements / Tools used
 sebpiq's [WebPd](https://github.com/sebpiq/WebPd) 
