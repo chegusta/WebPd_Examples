@@ -1,5 +1,5 @@
-# WebPd_P5_GLSL
-This project demonstrates a possible way of combining WebPd with GLSL through P5.js.
+# WebPD Examples
+This project demonstrates a possible way of combining WebPd with GLSL through P5.js, but also some simpler WebPd Shenanigans.
 
 # Acknowledgements / Tools used
 sebpiq's [WebPd](https://github.com/sebpiq/WebPd) 
